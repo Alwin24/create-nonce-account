@@ -1,0 +1,11 @@
+{
+  "name": "create-nonce-account",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "@solana/web3.js": "^1.66.2",
+    "fs": "^0.0.1-security"
+  }
+}
