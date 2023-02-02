@@ -11,53 +11,31 @@ import {
 import { writeFileSync, writeFile, readFileSync } from 'fs'
 
 // Setup our connection and wallet
-const connection = new Connection(clusterApiUrl('mainnet-beta'), 'confirmed')
-const devWalletUint = Uint8Array.from(JSON.parse(readFileSync('~/lunar-keypair/id.json')))
+const connection = new Connection(clusterApiUrl('mainnet-beta'), 'processed')
+const devWalletUint = Uint8Array.from(JSON.parse(readFileSync('/home/alwin/.config/solana/id.json')))
+const devWalletUint2 = Uint8Array.from(JSON.parse(readFileSync('/home/alwin/lunar-keypair/id.json')))
 
 const authority = Keypair.fromSecretKey(devWalletUint)
-const lamports = await connection.getMinimumBalanceForRentExemption(NONCE_ACCOUNT_LENGTH)
+const authority2 = Keypair.fromSecretKey(devWalletUint2)
 
-let nonceAccounts = []
-for (let i = 0; i < 50; ++i) {
-	let nonceAccount = Keypair.generate()
-	nonceAccounts.push(nonceAccount.publicKey.toBase58())
-	console.log(`nonce account${i + 1}: ${nonceAccount.publicKey.toBase58()}`)
+let nonceAccounts = JSON.parse(readFileSync('oldNonceAccs.json')).accounts.map((acc) => new PublicKey(acc))
+let transactions = []
 
-	let tx = new Transaction().add(
-		// SystemProgram.createAccount({
-		// 	fromPubkey: authority.publicKey,
-		// 	newAccountPubkey: nonceAccount.publicKey,
-		// 	lamports,
-		// 	space: NONCE_ACCOUNT_LENGTH,
-		// 	programId: SystemProgram.programId,
-		// }),
-
-		// SystemProgram.nonceInitialize({
-		// 	noncePubkey: nonceAccount.publicKey, // nonce account pubkey
-		// 	authorizedPubkey: authority.publicKey, // nonce account authority (for advance and close)
-		// }),
-
-        SystemProgram.nonceAuthorize({
-            noncePubkey: nonceAccount.publicKey,
-            authorizedPubkey,
-            newAuthorizedPubkey
-        })
-
-		// SystemProgram.nonceWithdraw({
-		//     noncePubkey: new PublicKey("EghBE8ooDrrorgpPcowHjZMAyW86PnXnXo9kneKtj24G"),
-		//     authorizedPubkey: authority.publicKey,
-		//     toPubkey: authority.publicKey,
-		//     lamports: await connection.getMinimumBalanceForRentExemption(NONCE_ACCOUNT_LENGTH),
-		// })
+let txn = new Transaction()
+for (let i = 50; i < 55; ) {
+	txn.add(
+		SystemProgram.nonceAuthorize({
+			noncePubkey: nonceAccounts[i],
+			authorizedPubkey: authority.publicKey,
+			newAuthorizedPubkey: authority2.publicKey,
+		})
 	)
-
-	// await connection.sendTransaction(tx, [authority, nonceAccount])
-	console.log(`txhash: ${await connection.sendTransaction(tx, [authority])}`)
+	++i
+	if (i % 5 == 0) {
+		transactions.push(txn)
+		txn = new Transaction()
+	}
 }
 
-// writeFile('result3.txt', 'export const nonceAcc = ["' + nonceAccounts.join('","') + '"]', err => {
-//     if (err) {
-//         console.error(err);
-//     }
-//     // file written successfully
-// })
+let result = await Promise.all(transactions.map((tx) => connection.sendTransaction(tx, [authority])))
+console.log(result)
